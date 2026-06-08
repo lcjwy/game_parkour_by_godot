@@ -243,7 +243,7 @@ func _on_map_selected(_index: int) -> void:
 
 func _on_audio_selected(index: int) -> void:
 	var preset := load(str(_audio_option.get_item_metadata(index))) as AudioPreset
-	AudioManager.set_preset(preset)
+	AudioManager.play_preset(preset)
 
 func _show_settings() -> void:
 	_settings_panel.visible = true
@@ -252,5 +252,5 @@ func _start_game() -> void:
 	var map_path := str(_map_option.get_item_metadata(_map_option.selected))
 	var audio_path := str(_audio_option.get_item_metadata(_audio_option.selected))
 	GameState.set_selection(map_path, audio_path)
-	AudioManager.set_preset(load(audio_path) as AudioPreset)
+	AudioManager.play_preset(load(audio_path) as AudioPreset)
 	get_tree().change_scene_to_file("res://scenes/game/game_root.tscn")

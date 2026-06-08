@@ -19,15 +19,30 @@ func _ready() -> void:
 	_player.stream = _generator
 	_player.bus = "Master"
 	add_child(_player)
-	_player.play()
-	_playback = _player.get_stream_playback() as AudioStreamGeneratorPlayback
-	set_preset(GameState.selected_audio_preset())
-	set_process(true)
+	play_preset(GameState.selected_audio_preset())
 
 func set_preset(preset: AudioPreset) -> void:
 	_preset = preset
 	if _player != null:
 		_player.volume_db = preset.volume_db
+
+func play_preset(preset: AudioPreset) -> void:
+	set_preset(preset)
+	if _player == null:
+		return
+	if not _player.playing:
+		_player.play()
+	_playback = _player.get_stream_playback() as AudioStreamGeneratorPlayback
+	set_process(true)
+
+func stop_playback() -> void:
+	if _player != null and _player.playing:
+		_player.stop()
+	_playback = null
+	set_process(false)
+
+func is_playing() -> bool:
+	return _player != null and _player.playing
 
 func _process(_delta: float) -> void:
 	if _playback == null or _preset == null:
