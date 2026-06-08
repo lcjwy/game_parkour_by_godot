@@ -1,5 +1,4 @@
 extends Node3D
-## 游戏主场景：三小时单局、不可暂停、离开操作失败、里程碑提示与结局弹窗。
 
 const INACTIVITY_FAIL_SECONDS: float = 60.0
 const INACTIVITY_WARNING_SECONDS: float = 10.0
@@ -84,7 +83,6 @@ func _physics_process(delta: float) -> void:
 		_complete_run()
 
 func _unhandled_input(event: InputEvent) -> void:
-	# 跑酷不能暂停；Esc/ui_cancel 不打开暂停菜单。
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 
@@ -131,17 +129,17 @@ func _add_setting_sun() -> void:
 	var sun_mesh := SphereMesh.new()
 	sun_mesh.radius = 12.0
 	sun_mesh.height = 24.0
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(1.0, 0.34, 0.12)
-	material.emission_enabled = true
-	material.emission = Color(1.0, 0.28, 0.08)
-	material.emission_energy_multiplier = 1.8
 
-	_sun_material = material
+	_sun_material = StandardMaterial3D.new()
+	_sun_material.albedo_color = Color(1.0, 0.34, 0.12)
+	_sun_material.emission_enabled = true
+	_sun_material.emission = Color(1.0, 0.28, 0.08)
+	_sun_material.emission_energy_multiplier = 1.8
+
 	_sun_visual = MeshInstance3D.new()
 	_sun_visual.name = "SettingSun"
 	_sun_visual.mesh = sun_mesh
-	_sun_visual.material_override = material
+	_sun_visual.material_override = _sun_material
 	_sun_visual.position = Vector3(-96.0, 34.0, -260.0)
 	add_child(_sun_visual)
 
@@ -235,7 +233,7 @@ func _inactivity_warning_message() -> String:
 		"en":
 			return "Keep driving, or this run will end soon."
 		"ko":
-			return "계속 운전하지 않으면 곧 종료됩니다."
+			return "Keep driving, or this run will end soon."
 		_:
 			return "请继续驾驶，否则本局即将结束"
 
