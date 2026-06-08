@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AudioPreset" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/audio_preset.gd" id="1_audio"]
+
+[resource]
+script = ExtResource("1_audio")
+id = &"engine"
+display_key = "audio.engine"
+frequency_hz = 74.0
+noise_amount = 0.22
+pulse_speed = 8.0
+volume_db = -16.0
+

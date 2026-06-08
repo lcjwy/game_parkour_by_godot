@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="MapConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/map_config.gd" id="1_map"]
+
+[resource]
+script = ExtResource("1_map")
+id = &"jungle"
+display_key = "map.jungle"
+description_key = "map.jungle.desc"
+atmosphere = &"jungle"
+target_duration_seconds = 10800.0
+road_width = 7.2
+road_color = Color(0.13, 0.15, 0.12, 1)
+ground_color = Color(0.10, 0.30, 0.16, 1)
+sky_color = Color(0.25, 0.37, 0.32, 1)
+fog_color = Color(0.16, 0.28, 0.22, 1)
+curve_strength = 28.0
+weather_enabled = true
+marker_color = Color(0.45, 0.85, 0.48, 1)
+
