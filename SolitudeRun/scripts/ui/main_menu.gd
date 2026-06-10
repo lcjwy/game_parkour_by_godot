@@ -32,9 +32,11 @@ var _language_label: Label
 var _resolution_label: Label
 var _master_label: Label
 var _sfx_label: Label
+var _hint_position_label: Label
 var _keybinds_label: Label
 var _control_hint_label: Label
 var _back_button: Button
+var _hint_position_option: OptionButton
 var _preview_container: SubViewportContainer
 var _preview_viewport: SubViewport
 var _preview_environment: WorldEnvironment
@@ -215,7 +217,7 @@ func _build_settings_panel() -> void:
 	_settings_panel = PanelContainer.new()
 	_settings_panel.visible = false
 	_settings_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_settings_panel.custom_minimum_size = Vector2(520, 430)
+	_settings_panel.custom_minimum_size = Vector2(520, 490)
 	_settings_panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(_settings_panel)
 
@@ -283,6 +285,15 @@ func _build_settings_panel() -> void:
 	sfx_slider.value_changed.connect(SettingsManager.set_sfx_volume)
 	root.add_child(sfx_slider)
 
+	var hint_position_row := _create_row()
+	_hint_position_label = hint_position_row["label"] as Label
+	_hint_position_option = OptionButton.new()
+	_hint_position_option.custom_minimum_size = Vector2(260, 42)
+	_populate_hint_position_options()
+	_hint_position_option.item_selected.connect(_on_hint_position_selected)
+	(hint_position_row["container"] as HBoxContainer).add_child(_hint_position_option)
+	root.add_child(hint_position_row["container"] as HBoxContainer)
+
 	_keybinds_label = Label.new()
 	_keybinds_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	root.add_child(_keybinds_label)
@@ -306,6 +317,17 @@ func _populate_audio_options() -> void:
 		_audio_option.add_item(TranslationService.text(preset.display_key), index)
 		_audio_option.set_item_metadata(index, AUDIO_PATHS[index])
 
+func _populate_hint_position_options() -> void:
+	if _hint_position_option == null:
+		return
+	_hint_position_option.clear()
+	for index in range(SettingsManager.CONTROL_HINT_POSITIONS.size()):
+		var position := SettingsManager.CONTROL_HINT_POSITIONS[index]
+		_hint_position_option.add_item(TranslationService.text("settings.position.%s" % str(position)), index)
+		_hint_position_option.set_item_metadata(index, position)
+		if position == SettingsManager.control_hint_position:
+			_hint_position_option.select(index)
+
 func _refresh_text() -> void:
 	_title_label.text = TranslationService.text("game.title")
 	_map_label.text = TranslationService.text("menu.map")
@@ -317,11 +339,13 @@ func _refresh_text() -> void:
 	_resolution_label.text = TranslationService.text("settings.resolution")
 	_master_label.text = TranslationService.text("settings.master_volume")
 	_sfx_label.text = TranslationService.text("settings.sfx_volume")
+	_hint_position_label.text = TranslationService.text("settings.control_hint_position")
 	_control_hint_label.text = SettingsManager.format_keybinds()
 	_keybinds_label.text = "%s: %s" % [TranslationService.text("settings.keybinds"), SettingsManager.format_keybinds()]
 	_back_button.text = TranslationService.text("settings.back")
 	_populate_map_options()
 	_populate_audio_options()
+	_populate_hint_position_options()
 	_refresh_selected_map()
 
 func _refresh_selected_map() -> void:
@@ -375,6 +399,10 @@ func _on_map_selected(_index: int) -> void:
 func _on_audio_selected(index: int) -> void:
 	var preset := load(str(_audio_option.get_item_metadata(index))) as AudioPreset
 	AudioManager.set_preset(preset)
+
+func _on_hint_position_selected(index: int) -> void:
+	var position: StringName = _hint_position_option.get_item_metadata(index)
+	SettingsManager.set_control_hint_position(position)
 
 func _show_settings() -> void:
 	_settings_panel.visible = true

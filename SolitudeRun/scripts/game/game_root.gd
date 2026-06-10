@@ -18,6 +18,7 @@ var _env: Environment
 var _scene_light: DirectionalLight3D
 var _played_label: Label
 var _toast_label: Label
+var _control_hint_label: Label
 var _countdown_label: Label
 var _modal: PanelContainer
 var _modal_text: RichTextLabel
@@ -167,6 +168,15 @@ func _build_hud() -> void:
 	_toast_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	layer.add_child(_toast_label)
 
+	_control_hint_label = Label.new()
+	_control_hint_label.text = TranslationService.text("hud.controls")
+	_control_hint_label.add_theme_font_size_override("font_size", 22)
+	_control_hint_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.48))
+	_control_hint_label.add_theme_color_override("font_outline_color", Color(0.04, 0.03, 0.02))
+	_control_hint_label.add_theme_constant_override("outline_size", 5)
+	layer.add_child(_control_hint_label)
+	_apply_control_hint_position()
+
 	_build_countdown_label(layer)
 	_build_result_modal(layer)
 	_update_hud()
@@ -232,6 +242,26 @@ func _update_start_prompt(delta: float) -> void:
 	else:
 		_countdown_label.text = "GO!!!"
 	_countdown_label.visible = true
+
+func _apply_control_hint_position() -> void:
+	if _control_hint_label == null:
+		return
+	_control_hint_label.reset_size()
+	match SettingsManager.control_hint_position:
+		&"top_left":
+			_control_hint_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+			_control_hint_label.position = Vector2(28.0, 18.0)
+			_control_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		&"top_right":
+			_control_hint_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+			_control_hint_label.position = Vector2(-360.0, 18.0)
+			_control_hint_label.custom_minimum_size = Vector2(332.0, 0.0)
+			_control_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		_:
+			_control_hint_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+			_control_hint_label.position = Vector2(-180.0, 18.0)
+			_control_hint_label.custom_minimum_size = Vector2(360.0, 0.0)
+			_control_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 func _begin_driving() -> void:
 	if not _countdown_active:

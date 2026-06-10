@@ -6,11 +6,13 @@ signal locale_changed(locale: String)
 
 const CONFIG_PATH: String = "user://settings.cfg"
 const DEFAULT_RESOLUTION: Vector2i = Vector2i(1280, 720)
+const CONTROL_HINT_POSITIONS: Array[StringName] = [&"top_center", &"top_left", &"top_right"]
 
 var locale: String = "zh"
 var resolution: Vector2i = DEFAULT_RESOLUTION
 var master_volume: float = 0.8
 var sfx_volume: float = 0.8
+var control_hint_position: StringName = &"top_center"
 
 func _ready() -> void:
 	_load_settings()
@@ -44,6 +46,15 @@ func set_sfx_volume(value: float) -> void:
 	_save_settings()
 	settings_changed.emit()
 
+func set_control_hint_position(value: StringName) -> void:
+	if not CONTROL_HINT_POSITIONS.has(value):
+		value = &"top_center"
+	if control_hint_position == value:
+		return
+	control_hint_position = value
+	_save_settings()
+	settings_changed.emit()
+
 func format_keybinds() -> String:
 	return "W: forward, Shift+W: 120% boost"
 
@@ -63,6 +74,9 @@ func _load_settings() -> void:
 	resolution = config.get_value("display", "resolution", resolution)
 	master_volume = float(config.get_value("audio", "master_volume", master_volume))
 	sfx_volume = float(config.get_value("audio", "sfx_volume", sfx_volume))
+	control_hint_position = StringName(str(config.get_value("hud", "control_hint_position", control_hint_position)))
+	if not CONTROL_HINT_POSITIONS.has(control_hint_position):
+		control_hint_position = &"top_center"
 
 func _save_settings() -> void:
 	var config := ConfigFile.new()
@@ -70,6 +84,7 @@ func _save_settings() -> void:
 	config.set_value("display", "resolution", resolution)
 	config.set_value("audio", "master_volume", master_volume)
 	config.set_value("audio", "sfx_volume", sfx_volume)
+	config.set_value("hud", "control_hint_position", str(control_hint_position))
 	config.save(CONFIG_PATH)
 
 func _ensure_input_map() -> void:
