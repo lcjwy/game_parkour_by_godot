@@ -4,12 +4,8 @@ const INACTIVITY_FAIL_SECONDS: float = 60.0
 const INACTIVITY_WARNING_SECONDS: float = 10.0
 const ONE_HOUR_SECONDS: float = 3600.0
 const TWO_AND_HALF_HOURS_SECONDS: float = 9000.0
-const DESERT_SKY_START: Color = Color(0.96, 0.46, 0.20)
-const DESERT_SKY_END: Color = Color(0.42, 0.16, 0.10)
-const DESERT_FOG_START: Color = Color(0.96, 0.67, 0.34)
-const DESERT_FOG_END: Color = Color(0.58, 0.25, 0.14)
-const DESERT_SUN_LIGHT_START: Color = Color(1.0, 0.76, 0.48)
-const DESERT_SUN_LIGHT_END: Color = Color(1.0, 0.36, 0.16)
+const COUNTDOWN_SECONDS: float = 3.0
+const GO_PROMPT_SECONDS: float = 0.75
 
 var _map_config: MapConfig
 var _road: RoadGenerator
@@ -18,17 +14,18 @@ var _weather: WeatherSystem
 var _camera: Camera3D
 var _environment: WorldEnvironment
 var _env: Environment
-var _sun_light: DirectionalLight3D
-var _sun_visual: MeshInstance3D
-var _sun_material: StandardMaterial3D
+var _scene_light: DirectionalLight3D
 var _played_label: Label
 var _toast_label: Label
+var _countdown_label: Label
 var _modal: PanelContainer
 var _modal_text: RichTextLabel
 var _elapsed: float = 0.0
+var _start_prompt_remaining: float = COUNTDOWN_SECONDS + GO_PROMPT_SECONDS
 var _last_input_elapsed: float = 0.0
 var _focus_lost_ticks_msec: int = -1
 var _running: bool = false
+var _countdown_active: bool = true
 var _one_hour_shown: bool = false
 var _two_half_hours_shown: bool = false
 var _inactivity_warning_shown: bool = false
@@ -41,10 +38,12 @@ func _ready() -> void:
 	_build_hud()
 	GameState.start_run()
 	_running = true
+	_countdown_active = true
+	_start_prompt_remaining = COUNTDOWN_SECONDS + GO_PROMPT_SECONDS
 	_last_input_elapsed = 0.0
 
 func _notification(what: int) -> void:
-	if not _running:
+	if not _running or _countdown_active:
 		return
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		_focus_lost_ticks_msec = Time.get_ticks_msec()
@@ -61,6 +60,13 @@ func _physics_process(delta: float) -> void:
 	if not _running:
 		return
 
+	if _countdown_active:
+		_update_start_prompt(delta)
+		_weather.follow(_car.global_position)
+		_update_camera(delta)
+		_update_hud()
+		return
+
 	_elapsed += delta
 	GameState.update_elapsed(_elapsed)
 
@@ -75,7 +81,6 @@ func _physics_process(delta: float) -> void:
 	_road.update_window(_car.distance_traveled)
 	_weather.follow(_car.global_position)
 	_update_camera(delta)
-	_update_sun_progress()
 	_update_hud()
 	_update_milestones()
 
@@ -97,16 +102,12 @@ func _build_world() -> void:
 	_environment.environment = _env
 	add_child(_environment)
 
-	_sun_light = DirectionalLight3D.new()
-	_sun_light.name = "LowSun"
-	_sun_light.light_color = Color(1.0, 0.74, 0.46) if _map_config.atmosphere == &"desert" else Color(0.72, 0.88, 0.70)
-	_sun_light.light_energy = 2.6 if _map_config.atmosphere == &"desert" else 1.4
-	_sun_light.rotation_degrees = Vector3(-18.0, -38.0, 0.0)
-	add_child(_sun_light)
-
-	if _map_config.atmosphere == &"desert":
-		_add_setting_sun()
-		_update_sun_progress()
+	_scene_light = DirectionalLight3D.new()
+	_scene_light.name = "SceneLight"
+	_scene_light.light_color = Color(1.0, 0.74, 0.46) if _map_config.atmosphere == &"desert" else Color(0.72, 0.88, 0.70)
+	_scene_light.light_energy = 2.2 if _map_config.atmosphere == &"desert" else 1.4
+	_scene_light.rotation_degrees = Vector3(-18.0, -38.0, 0.0)
+	add_child(_scene_light)
 
 	_road = RoadGenerator.new()
 	add_child(_road)
@@ -124,24 +125,6 @@ func _build_world() -> void:
 	_camera.fov = 68.0
 	add_child(_camera)
 	_update_camera(1.0)
-
-func _add_setting_sun() -> void:
-	var sun_mesh := SphereMesh.new()
-	sun_mesh.radius = 12.0
-	sun_mesh.height = 24.0
-
-	_sun_material = StandardMaterial3D.new()
-	_sun_material.albedo_color = Color(1.0, 0.34, 0.12)
-	_sun_material.emission_enabled = true
-	_sun_material.emission = Color(1.0, 0.28, 0.08)
-	_sun_material.emission_energy_multiplier = 1.8
-
-	_sun_visual = MeshInstance3D.new()
-	_sun_visual.name = "SettingSun"
-	_sun_visual.mesh = sun_mesh
-	_sun_visual.material_override = _sun_material
-	_sun_visual.position = Vector3(-96.0, 34.0, -260.0)
-	add_child(_sun_visual)
 
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
@@ -170,6 +153,7 @@ func _build_hud() -> void:
 	_toast_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	layer.add_child(_toast_label)
 
+	_build_countdown_label(layer)
 	_build_result_modal(layer)
 	_update_hud()
 
@@ -203,11 +187,40 @@ func _build_result_modal(layer: CanvasLayer) -> void:
 	back_button.pressed.connect(_return_to_menu)
 	root.add_child(back_button)
 
+func _build_countdown_label(layer: CanvasLayer) -> void:
+	_countdown_label = Label.new()
+	_countdown_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_countdown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_countdown_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_countdown_label.add_theme_font_size_override("font_size", 124)
+	_countdown_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.38))
+	_countdown_label.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.01))
+	_countdown_label.add_theme_constant_override("outline_size", 12)
+	layer.add_child(_countdown_label)
+	_update_start_prompt(0.0)
+
 func _update_camera(delta: float) -> void:
 	var forward := _road.sample_tangent(_car.distance_traveled)
 	var target := _car.global_position - forward * 9.0 + Vector3.UP * 5.2
 	_camera.global_position = _camera.global_position.lerp(target, clampf(delta * 4.0, 0.0, 1.0))
 	_camera.look_at(_car.global_position + Vector3.UP * 1.1, Vector3.UP)
+
+func _update_start_prompt(delta: float) -> void:
+	_start_prompt_remaining = maxf(_start_prompt_remaining - delta, 0.0)
+	if _start_prompt_remaining <= 0.0:
+		_countdown_active = false
+		_last_input_elapsed = _elapsed
+		if _countdown_label != null:
+			_countdown_label.visible = false
+		return
+	if _countdown_label == null:
+		return
+	if _start_prompt_remaining > GO_PROMPT_SECONDS:
+		var count_value := int(ceil(_start_prompt_remaining - GO_PROMPT_SECONDS))
+		_countdown_label.text = str(clampi(count_value, 1, int(COUNTDOWN_SECONDS)))
+	else:
+		_countdown_label.text = "GO!!!"
+	_countdown_label.visible = true
 
 func _check_inactivity_failure() -> bool:
 	var inactivity_elapsed := _current_inactivity_elapsed()
@@ -236,28 +249,6 @@ func _inactivity_warning_message() -> String:
 			return "Keep driving, or this run will end soon."
 		_:
 			return "请继续驾驶，否则本局即将结束"
-
-func _update_sun_progress() -> void:
-	if _map_config == null or _map_config.atmosphere != &"desert":
-		return
-	var progress := clampf(_elapsed / maxf(_map_config.target_duration_seconds, 1.0), 0.0, 1.0)
-	var eased_progress := progress * progress * (3.0 - 2.0 * progress)
-	if _sun_visual != null:
-		var height := lerpf(44.0, 10.0, eased_progress)
-		var distance_z := lerpf(-238.0, -306.0, eased_progress)
-		_sun_visual.position = Vector3(-96.0, height, distance_z)
-		_sun_visual.scale = Vector3.ONE * lerpf(0.92, 1.18, eased_progress)
-	if _sun_material != null:
-		_sun_material.albedo_color = DESERT_SUN_LIGHT_START.lerp(DESERT_SUN_LIGHT_END, eased_progress)
-		_sun_material.emission = DESERT_SUN_LIGHT_START.lerp(DESERT_SUN_LIGHT_END, eased_progress)
-		_sun_material.emission_energy_multiplier = lerpf(2.1, 1.1, eased_progress)
-	if _sun_light != null:
-		_sun_light.rotation_degrees = Vector3(lerpf(-25.0, -7.0, eased_progress), -38.0, 0.0)
-		_sun_light.light_color = DESERT_SUN_LIGHT_START.lerp(DESERT_SUN_LIGHT_END, eased_progress)
-		_sun_light.light_energy = lerpf(2.8, 1.1, eased_progress)
-	if _env != null:
-		_env.background_color = DESERT_SKY_START.lerp(DESERT_SKY_END, eased_progress)
-		_env.fog_light_color = DESERT_FOG_START.lerp(DESERT_FOG_END, eased_progress)
 
 func _update_hud() -> void:
 	_played_label.text = "%s %s" % [TranslationService.text("hud.played"), _format_elapsed(_elapsed)]
