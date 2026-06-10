@@ -33,7 +33,7 @@ var _toast_hide_time: float = 0.0
 
 func _ready() -> void:
 	_map_config = GameState.selected_map()
-	AudioManager.play_preset(GameState.selected_audio_preset())
+	AudioManager.set_preset(GameState.selected_audio_preset())
 	_build_world()
 	_build_hud()
 	GameState.start_run()
@@ -67,6 +67,10 @@ func _physics_process(delta: float) -> void:
 		_update_hud()
 		return
 
+	if not Input.is_action_pressed("accelerate"):
+		_fail_run("result.released_accelerate")
+		return
+
 	_elapsed += delta
 	GameState.update_elapsed(_elapsed)
 
@@ -98,14 +102,23 @@ func _build_world() -> void:
 	_env.background_color = _map_config.sky_color
 	_env.fog_enabled = true
 	_env.fog_light_color = _map_config.fog_color
-	_env.fog_density = 0.018 if _map_config.weather_enabled else 0.009
+	if _map_config.atmosphere == &"desert":
+		_env.fog_density = 0.0045
+	elif _map_config.weather_enabled:
+		_env.fog_density = 0.018
+	else:
+		_env.fog_density = 0.0065
 	_environment.environment = _env
 	add_child(_environment)
 
 	_scene_light = DirectionalLight3D.new()
 	_scene_light.name = "SceneLight"
-	_scene_light.light_color = Color(1.0, 0.74, 0.46) if _map_config.atmosphere == &"desert" else Color(0.72, 0.88, 0.70)
-	_scene_light.light_energy = 2.2 if _map_config.atmosphere == &"desert" else 1.4
+	if _map_config.atmosphere == &"desert":
+		_scene_light.light_color = Color(1.0, 0.84, 0.56)
+		_scene_light.light_energy = 3.0
+	else:
+		_scene_light.light_color = Color(0.86, 0.96, 0.76)
+		_scene_light.light_energy = 1.85
 	_scene_light.rotation_degrees = Vector3(-18.0, -38.0, 0.0)
 	add_child(_scene_light)
 
@@ -208,10 +221,7 @@ func _update_camera(delta: float) -> void:
 func _update_start_prompt(delta: float) -> void:
 	_start_prompt_remaining = maxf(_start_prompt_remaining - delta, 0.0)
 	if _start_prompt_remaining <= 0.0:
-		_countdown_active = false
-		_last_input_elapsed = _elapsed
-		if _countdown_label != null:
-			_countdown_label.visible = false
+		_begin_driving()
 		return
 	if _countdown_label == null:
 		return
@@ -221,6 +231,18 @@ func _update_start_prompt(delta: float) -> void:
 	else:
 		_countdown_label.text = "GO!!!"
 	_countdown_label.visible = true
+
+func _begin_driving() -> void:
+	if not _countdown_active:
+		return
+	_countdown_active = false
+	_last_input_elapsed = _elapsed
+	if _countdown_label != null:
+		_countdown_label.visible = false
+	if not Input.is_action_pressed("accelerate"):
+		_fail_run("result.released_accelerate")
+		return
+	AudioManager.play_preset(GameState.selected_audio_preset())
 
 func _check_inactivity_failure() -> bool:
 	var inactivity_elapsed := _current_inactivity_elapsed()
@@ -268,13 +290,13 @@ func _show_toast(message: String, duration: float) -> void:
 	_toast_label.visible = true
 	_toast_hide_time = _elapsed + duration
 
-func _fail_run() -> void:
+func _fail_run(result_key: String = "result.failed") -> void:
 	if not _running:
 		return
 	_running = false
 	SaveManager.record_run(_elapsed)
-	GameState.fail_run()
-	_show_result(TranslationService.text("result.failed"))
+	GameState.fail_run(result_key)
+	_show_result(TranslationService.text(result_key))
 
 func _complete_run() -> void:
 	if not _running:

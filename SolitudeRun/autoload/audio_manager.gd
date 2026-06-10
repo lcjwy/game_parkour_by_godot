@@ -19,7 +19,7 @@ func _ready() -> void:
 	_player.stream = _generator
 	_player.bus = "Master"
 	add_child(_player)
-	play_preset(GameState.selected_audio_preset())
+	set_preset(GameState.selected_audio_preset())
 
 func set_preset(preset: AudioPreset) -> void:
 	_preset = preset

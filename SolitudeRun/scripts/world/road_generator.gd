@@ -9,7 +9,8 @@ const TERRAIN_ROW_STEP: int = 4
 const TERRAIN_WIDTH: float = 900.0
 const SAND_PATCH_INTERVAL: int = 5
 const SAND_SHAPE_VARIANTS: int = 100
-const RIDGE_INTERVAL: int = 12
+const RIDGE_INTERVAL: int = 7
+const PLANT_INTERVAL: int = 9
 const WINDOW_REBUILD_SEGMENTS: int = 16
 
 var _config: MapConfig
@@ -17,10 +18,12 @@ var _mesh_instance: MeshInstance3D
 var _sand_patch_instance: MeshInstance3D
 var _ground_instance: MeshInstance3D
 var _ridge_instance: MultiMeshInstance3D
+var _plant_instance: MultiMeshInstance3D
 var _road_material: StandardMaterial3D
 var _sand_material: StandardMaterial3D
 var _terrain_material: StandardMaterial3D
 var _ridge_material: StandardMaterial3D
+var _plant_material: StandardMaterial3D
 var _last_start_index: int = -999999
 var _pending_start_distance: float = 0.0
 var _pending_rebuild_step: int = -1
@@ -35,6 +38,10 @@ func _ready() -> void:
 	_ridge_instance = MultiMeshInstance3D.new()
 	_ridge_instance.name = "DesertRidges"
 	add_child(_ridge_instance)
+
+	_plant_instance = MultiMeshInstance3D.new()
+	_plant_instance.name = "DesertPlants"
+	add_child(_plant_instance)
 
 	_mesh_instance = MeshInstance3D.new()
 	_mesh_instance.name = "RoadMesh"
@@ -75,18 +82,21 @@ func _process(_delta: float) -> void:
 		1:
 			_rebuild_ridges(_pending_start_distance)
 		2:
-			_rebuild_road_mesh(_pending_start_distance)
+			_rebuild_desert_plants(_pending_start_distance)
 		3:
+			_rebuild_road_mesh(_pending_start_distance)
+		4:
 			_rebuild_sand_patches(_pending_start_distance)
 
 	_pending_rebuild_step += 1
-	if _pending_rebuild_step > 3:
+	if _pending_rebuild_step > 4:
 		_pending_rebuild_step = -1
 		set_process(false)
 
 func _rebuild_all(start_distance: float) -> void:
 	_rebuild_terrain(start_distance)
 	_rebuild_ridges(start_distance)
+	_rebuild_desert_plants(start_distance)
 	_rebuild_road_mesh(start_distance)
 	_rebuild_sand_patches(start_distance)
 
@@ -275,12 +285,53 @@ func _rebuild_ridges(start_distance: float) -> void:
 	_ridge_instance.multimesh = multimesh
 	_ridge_instance.material_override = _ridge_material
 
+func _rebuild_desert_plants(start_distance: float) -> void:
+	var plant_mesh := SphereMesh.new()
+	plant_mesh.radius = 1.0
+	plant_mesh.height = 1.35
+	plant_mesh.radial_segments = 8
+	plant_mesh.rings = 4
+
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = plant_mesh
+	if _config.atmosphere != &"desert":
+		multimesh.instance_count = 0
+		_plant_instance.multimesh = multimesh
+		return
+
+	var plant_groups := int(visible_segments / PLANT_INTERVAL)
+	multimesh.instance_count = plant_groups * 2
+	var start_index := int(round(start_distance / segment_length))
+	for group in range(plant_groups):
+		for side_index in range(2):
+			var instance_index := group * 2 + side_index
+			var side := -1.0 if side_index == 0 else 1.0
+			var seed := start_index + group * PLANT_INTERVAL + side_index * 131
+			if _hash01(seed, 11) < 0.38:
+				multimesh.set_instance_transform(instance_index, Transform3D(Basis.IDENTITY.scaled(Vector3.ZERO), Vector3.ZERO))
+				continue
+			var distance := start_distance + float(group * PLANT_INTERVAL) * segment_length + lerpf(-18.0, 18.0, _hash01(seed, 12))
+			var lateral_offset := side * lerpf(32.0, 165.0, _hash01(seed, 13))
+			var position := sample_center(distance) + sample_right(distance) * lateral_offset
+			position.y = _terrain_height(distance, lateral_offset) + 0.85
+			var scale := Vector3(
+				lerpf(1.4, 3.8, _hash01(seed, 14)),
+				lerpf(1.2, 3.4, _hash01(seed, 15)),
+				lerpf(1.4, 4.2, _hash01(seed, 16))
+			)
+			var basis := Basis.IDENTITY.rotated(Vector3.UP, lerpf(-PI, PI, _hash01(seed, 17))).scaled(scale)
+			multimesh.set_instance_transform(instance_index, Transform3D(basis, position))
+	_plant_instance.multimesh = multimesh
+	_plant_instance.material_override = _plant_material
+
 func _build_materials() -> void:
 	_road_material = _material(_config.road_color, 0.96)
 	_road_material.vertex_color_use_as_albedo = true
 	_sand_material = _material(_config.ground_color.lightened(0.03), 0.98)
 	_terrain_material = _material(_config.ground_color, 0.94)
 	_ridge_material = _material(_config.ground_color.lightened(0.07), 0.96)
+	_plant_material = _material(Color(0.28, 0.48, 0.20), 0.86)
 
 func _road_height(distance: float, lateral_offset: float) -> float:
 	var half_width := 4.0
@@ -300,8 +351,9 @@ func _terrain_height(distance: float, lateral_offset: float) -> float:
 	var dune_height := sin(distance * 0.0048 + lateral_offset * 0.020) * 8.8
 	dune_height += sin(distance * 0.0016 - lateral_offset * 0.010) * 15.0
 	dune_height += sin(distance * 0.010 + lateral_offset * 0.006) * 3.2
+	dune_height += sin(distance * 0.018 - lateral_offset * 0.017) * 4.6
 	var atmosphere_scale := 1.0 if _config != null and _config.atmosphere == &"desert" else 0.18
-	var side_lift := pow(blend, 1.25) * 18.0 * atmosphere_scale
+	var side_lift := pow(blend, 1.18) * 24.0 * atmosphere_scale
 	return -0.18 + (dune_height * blend + side_lift) * atmosphere_scale
 
 func _hash01(seed_a: int, seed_b: int = 0) -> float:

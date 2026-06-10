@@ -339,10 +339,19 @@ func _apply_preview_map(map_config: MapConfig) -> void:
 	if _preview_env != null:
 		_preview_env.background_color = map_config.sky_color
 		_preview_env.fog_light_color = map_config.fog_color
-		_preview_env.fog_density = 0.018 if map_config.weather_enabled else 0.009
+		if map_config.atmosphere == &"desert":
+			_preview_env.fog_density = 0.0045
+		elif map_config.weather_enabled:
+			_preview_env.fog_density = 0.018
+		else:
+			_preview_env.fog_density = 0.0065
 	if _preview_light != null:
-		_preview_light.light_color = Color(1.0, 0.74, 0.46) if map_config.atmosphere == &"desert" else Color(0.72, 0.88, 0.70)
-		_preview_light.light_energy = 2.2 if map_config.atmosphere == &"desert" else 1.4
+		if map_config.atmosphere == &"desert":
+			_preview_light.light_color = Color(1.0, 0.84, 0.56)
+			_preview_light.light_energy = 3.0
+		else:
+			_preview_light.light_color = Color(0.86, 0.96, 0.76)
+			_preview_light.light_energy = 1.85
 	if _preview_road != null:
 		_preview_road.configure(map_config)
 	if _preview_weather != null:
@@ -365,7 +374,7 @@ func _on_map_selected(_index: int) -> void:
 
 func _on_audio_selected(index: int) -> void:
 	var preset := load(str(_audio_option.get_item_metadata(index))) as AudioPreset
-	AudioManager.play_preset(preset)
+	AudioManager.set_preset(preset)
 
 func _show_settings() -> void:
 	_settings_panel.visible = true
@@ -374,5 +383,5 @@ func _start_game() -> void:
 	var map_path := str(_map_option.get_item_metadata(_map_option.selected))
 	var audio_path := str(_audio_option.get_item_metadata(_audio_option.selected))
 	GameState.set_selection(map_path, audio_path)
-	AudioManager.play_preset(load(audio_path) as AudioPreset)
+	AudioManager.set_preset(load(audio_path) as AudioPreset)
 	get_tree().change_scene_to_file("res://scenes/game/game_root.tscn")

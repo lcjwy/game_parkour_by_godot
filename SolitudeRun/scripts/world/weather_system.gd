@@ -12,8 +12,10 @@ func configure(config: MapConfig) -> void:
 	_clear_children()
 	if config.weather_enabled:
 		_build_rain()
-	else:
+	elif config.atmosphere == &"desert":
 		_build_desert_smoke()
+	elif config.atmosphere == &"grassland":
+		_build_grassland_breeze()
 	set_process(true)
 
 func follow(target_position: Vector3) -> void:
@@ -79,9 +81,33 @@ func _build_desert_smoke() -> void:
 	smoke.draw_pass_1 = smoke_mesh
 	add_child(smoke)
 
+func _build_grassland_breeze() -> void:
+	var pollen := GPUParticles3D.new()
+	pollen.name = "GrasslandBreeze"
+	pollen.amount = 120
+	pollen.lifetime = 3.4
+	pollen.visibility_aabb = AABB(Vector3(-52, -8, -52), Vector3(104, 28, 104))
+	pollen.emitting = true
+
+	var process_material := ParticleProcessMaterial.new()
+	process_material.gravity = Vector3(0.9, -0.25, -0.35)
+	process_material.initial_velocity_min = 0.6
+	process_material.initial_velocity_max = 1.8
+	process_material.spread = 28.0
+	process_material.scale_min = 0.08
+	process_material.scale_max = 0.22
+	process_material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	process_material.emission_box_extents = Vector3(44.0, 3.0, 44.0)
+	pollen.process_material = process_material
+
+	var pollen_mesh := SphereMesh.new()
+	pollen_mesh.radius = 0.08
+	pollen_mesh.height = 0.08
+	pollen.draw_pass_1 = pollen_mesh
+	add_child(pollen)
+
 func _clear_children() -> void:
 	for child in get_children():
 		child.queue_free()
 	_rain = null
 	_lightning = null
-
