@@ -4,6 +4,7 @@ extends Node3D
 @export var segment_length: float = 12.0
 
 const ROAD_COLUMNS: int = 6
+const ROAD_CURVE_SUBDIVISIONS: int = 4
 const TERRAIN_COLUMNS: int = 26
 const TERRAIN_ROW_STEP: int = 4
 const TERRAIN_WIDTH: float = 900.0
@@ -125,9 +126,11 @@ func _rebuild_road_mesh(start_distance: float) -> void:
 	var indices := PackedInt32Array()
 	var colors := PackedColorArray()
 	var half_width := _config.road_width * 0.5
+	var road_rows := visible_segments * ROAD_CURVE_SUBDIVISIONS
+	var road_step := segment_length / float(ROAD_CURVE_SUBDIVISIONS)
 
-	for row in range(visible_segments + 1):
-		var distance := start_distance + float(row) * segment_length
+	for row in range(road_rows + 1):
+		var distance := start_distance + float(row) * road_step
 		var center := sample_center(distance)
 		var right := sample_right(distance)
 		for column in range(ROAD_COLUMNS + 1):
@@ -143,7 +146,7 @@ func _rebuild_road_mesh(start_distance: float) -> void:
 			colors.append(color)
 
 	var row_width := ROAD_COLUMNS + 1
-	for row in range(visible_segments):
+	for row in range(road_rows):
 		for column in range(ROAD_COLUMNS):
 			var base := row * row_width + column
 			indices.append_array(PackedInt32Array([base, base + row_width, base + 1, base + 1, base + row_width, base + row_width + 1]))

@@ -44,5 +44,8 @@ Assert-Contains $translations '"map\.jungle": "Grassland"' 'English map label sh
 Assert-Contains $weatherSystem '_build_grassland_breeze\(\)' 'WeatherSystem should use a non-rain grassland effect.'
 Assert-Contains $roadGenerator '_rebuild_desert_plants' 'RoadGenerator should add desert plant decoration.'
 Assert-Contains $roadGenerator 'const RIDGE_INTERVAL: int = 7' 'Desert dunes should be denser.'
+Assert-Contains $roadGenerator 'const ROAD_CURVE_SUBDIVISIONS: int = 4' 'Road mesh should use subdivision sampling for smoother curves.'
+Assert-Contains $roadGenerator 'var road_rows := visible_segments \* ROAD_CURVE_SUBDIVISIONS' 'Road mesh should generate more longitudinal rows than terrain segments.'
+Assert-Contains $roadGenerator 'var road_step := segment_length / float\(ROAD_CURVE_SUBDIVISIONS\)' 'Road mesh should sample curve points at sub-segment intervals.'
 
 Write-Host 'Gameplay change verification passed.'
