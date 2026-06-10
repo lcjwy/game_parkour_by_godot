@@ -6,6 +6,7 @@ const ONE_HOUR_SECONDS: float = 3600.0
 const TWO_AND_HALF_HOURS_SECONDS: float = 9000.0
 const COUNTDOWN_SECONDS: float = 3.0
 const GO_PROMPT_SECONDS: float = 0.75
+const ACCELERATE_GRACE_SECONDS: float = 5.0
 
 var _map_config: MapConfig
 var _road: RoadGenerator
@@ -67,7 +68,7 @@ func _physics_process(delta: float) -> void:
 		_update_hud()
 		return
 
-	if not Input.is_action_pressed("accelerate"):
+	if _elapsed >= ACCELERATE_GRACE_SECONDS and not Input.is_action_pressed("accelerate"):
 		_fail_run("result.released_accelerate")
 		return
 
@@ -239,9 +240,6 @@ func _begin_driving() -> void:
 	_last_input_elapsed = _elapsed
 	if _countdown_label != null:
 		_countdown_label.visible = false
-	if not Input.is_action_pressed("accelerate"):
-		_fail_run("result.released_accelerate")
-		return
 	AudioManager.play_preset(GameState.selected_audio_preset())
 
 func _check_inactivity_failure() -> bool:

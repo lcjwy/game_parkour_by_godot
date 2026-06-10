@@ -32,6 +32,8 @@ Assert-NotContains $audioManager 'play_preset\(GameState\.selected_audio_preset\
 Assert-NotContains $mainMenu 'func _start_game\(\) -> void:[\s\S]*AudioManager\.play_preset' 'Start button must not play audio before entering the run.'
 Assert-Contains $gameRoot '_begin_driving\(\)' 'GameRoot should start audio only when countdown finishes.'
 Assert-Contains $gameRoot '_fail_run\("result\.released_accelerate"\)' 'Releasing W/accelerate during gameplay should fail immediately.'
+Assert-Contains $gameRoot 'const ACCELERATE_GRACE_SECONDS: float = 5\.0' 'W/accelerate release detection should start after a 5 second grace period.'
+Assert-Contains $gameRoot '_elapsed >= ACCELERATE_GRACE_SECONDS' 'W/accelerate release detection should be delayed by elapsed run time.'
 
 Assert-Contains $grasslandMap 'id = &"grassland"' 'The former jungle map should become grassland.'
 Assert-Contains $grasslandMap 'atmosphere = &"grassland"' 'Grassland map should use grassland atmosphere.'
